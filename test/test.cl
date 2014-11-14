@@ -1,6 +1,6 @@
 Class C
 {
-	i : Int;
+	i : Int <-2;
 	q : Bool;
 };
 Class B 

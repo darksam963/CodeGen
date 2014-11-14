@@ -403,9 +403,9 @@ void StringEntry::code_def(ostream& s, int stringclasstag)
       << WORD << (DEFAULT_OBJFIELDS + STRING_SLOTS + (len+4)/4) << endl // size
       << WORD;
 
-      s << "String_dispTab";
+      s << "String_dispTab";                                  // dispatch table
 
-      s << endl;                                              // dispatch table
+      s << endl;                                              
       s << WORD;  lensym->code_ref(s);  s << endl;            // string length
   emit_string_constant(s,str);                                // ascii string
   s << ALIGN;                                                 // align to word
@@ -445,9 +445,9 @@ void IntEntry::code_def(ostream &s, int intclasstag)
       << WORD << (DEFAULT_OBJFIELDS + INT_SLOTS) << endl  // object size
       << WORD; 
 
-      s << "Int_dispTab";
+      s << "Int_dispTab";                                 // dispatch table
 
-      s << endl;                                          // dispatch table
+      s << endl;                                          
       s << WORD << str << endl;                           // integer value
 }
 
@@ -489,9 +489,9 @@ void BoolConst::code_def(ostream& s, int boolclasstag)
       << WORD << (DEFAULT_OBJFIELDS + BOOL_SLOTS) << endl   // object size
       << WORD;
 
-      s << "Bool_dispTab";
+      s << "Bool_dispTab";                                  // dispatch table
 
-      s << endl;                                            // dispatch table
+      s << endl;                                            
       s << WORD << val << endl;                             // value (0 or 1)
 }
 
@@ -861,6 +861,10 @@ void CgenClassTable::code()
 //                   - the class methods
 //                   - etc...
 
+  if(cgen_debug) cout<< "coding class initializing methods" << endl;
+  code_obj_init();
+
+
 
 
 }
@@ -1135,4 +1139,51 @@ void CgenClassTable::code_prototypeObjects()
         attrTab.insert(std::pair<Symbol, std::map<Symbol, int> >(classes_vector[i]->get_name(),attrList));
         code_attrList(classes_vector[i],classes_vector[i]->get_name());
   }
+}
+
+// Object initializer
+
+void CgenClassTable::code_obj_init()
+{
+  for(int i=classes_vector.size()-1; i>-1; i--)
+  {
+    str << classes_vector[i]->get_name() << CLASSINIT_SUFFIX << LABEL;
+    code_class_init(classes_vector[i]);
+  }
+}
+
+void CgenClassTable::code_class_init(CgenNode* n)
+{
+  emit_push(FP,str);
+  emit_push(SELF,str);
+  emit_push(RA,str);
+  emit_addiu(FP,SP,4,str);
+  emit_move(SELF,ACC,str);
+
+  if(n->get_name()!=Object)
+  {
+    str << JAL << n->get_parentnd()->get_name()->get_string()<<"_init"<<endl;
+  }
+
+  for(int i=n->features->first(); n->features->more(i); i=n->features->next(i))
+  {
+    attr_class* attr = dynamic_cast<attr_class*>(n->features->nth(i));
+    if(attr != NULL)
+    {
+      Expression e = attr->init;
+      if(e->get_type() != NULL)
+      {
+        attr->init->code(str);
+        emit_store(ACC,(attrTab[n->get_name()][attr->name]+3),SELF,str);
+      }
+    }
+  }
+
+
+  emit_move(ACC,SELF,str);
+  emit_load(FP,3,SP,str);
+  emit_load(SELF,2,SP,str);
+  emit_load(RA,1,SP,str);
+  emit_addiu(SP,SP,12,str);
+  str << "\tjr $ra"<<endl;
 }

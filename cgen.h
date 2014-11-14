@@ -45,6 +45,10 @@ private:
    void code_attrList(CgenNode* n, Symbol current_class);
 
 
+// for class initializing methods, class methods
+   void code_obj_init();
+   void code_class_init(CgenNode* n);
+
 // The following creates an inheritance graph from
 // a list of classes.  The graph is implemented as
 // a tree of `CgenNode', and class names are placed
