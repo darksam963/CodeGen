@@ -1003,6 +1003,8 @@ void CgenClassTable::code_objTab()
   }
 }
 
+//DISPATCH TABLES
+
 std::map<Symbol, std::map<Symbol, std::pair<int, Symbol> > > dispTab;
 
 
@@ -1055,6 +1057,8 @@ void CgenClassTable::code_dispTab()
   }
 }
 
+//PROTOTYPE OBJECTS
+
 std::map<Symbol, std::map<Symbol, int> > attrTab;
 
 int CgenClassTable::numOfattr(CgenNode* n)
@@ -1075,15 +1079,15 @@ int CgenClassTable::numOfattr(CgenNode* n)
   return count;
 }
 
-void code_attrList(CgenNode* n,Symbol current_class)
+void CgenClassTable::code_attrList(CgenNode* n,Symbol current_class)
 {
   if(n->get_name() != Object)
   {
     code_attrList(n->get_parentnd(),current_class);
   }
-
-  attr_class* attr = dynamic_cast<attr_class*>(n->features->nth(i))
+  for(int i = n->features->first(); n->features->more(i); i = n->features->next(i))
   {
+    attr_class* attr = dynamic_cast<attr_class*>(n->features->nth(i));
     if(attr != NULL)
     {
       if(attr->type_decl == Int)
@@ -1093,9 +1097,28 @@ void code_attrList(CgenNode* n,Symbol current_class)
         Int_Entry->code_ref(str);
         str<<endl;
       }
+      else if(attr->type_decl == Str)
+      {
+        StringEntry* String_Entry = stringtable.lookup_string("");
+        str << WORD;
+        String_Entry->code_ref(str);
+        str<<endl;
+      }
+      else if(attr->type_decl == Bool)
+      {
+        str << WORD;
+        falsebool.code_ref(str);
+        str << endl;
+      }
+      else
+      {
+        str << WORD << 0 << endl; //for non-basic classes
+      }
+      attrTab[current_class].insert(std::pair<Symbol,int>(attr->name,attrTab[current_class].size()));
     }
   }
 }
+
 
 void CgenClassTable::code_prototypeObjects()
 {

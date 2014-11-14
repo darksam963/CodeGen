@@ -353,36 +353,52 @@ Main_protObj:
 	.word	8
 	.word	9
 	.word	Main_dispTab
+	.word	0
+	.word	0
+	.word	0
+	.word	bool_const0
+	.word	int_const6
+	.word	str_const17
 	.word	-1
 A_protObj:
 	.word	7
 	.word	6
 	.word	A_dispTab
+	.word	0
+	.word	int_const6
+	.word	str_const17
 	.word	-1
 B_protObj:
 	.word	6
 	.word	4
 	.word	B_dispTab
+	.word	0
 	.word	-1
 C_protObj:
 	.word	5
 	.word	5
 	.word	C_dispTab
+	.word	int_const6
+	.word	bool_const0
 	.word	-1
 String_protObj:
 	.word	4
 	.word	5
 	.word	String_dispTab
+	.word	int_const6
+	.word	0
 	.word	-1
 Bool_protObj:
 	.word	3
 	.word	4
 	.word	Bool_dispTab
+	.word	0
 	.word	-1
 Int_protObj:
 	.word	2
 	.word	4
 	.word	Int_dispTab
+	.word	0
 	.word	-1
 IO_protObj:
 	.word	1

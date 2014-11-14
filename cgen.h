@@ -42,6 +42,7 @@ private:
    void make_dispTab(CgenNode* n, Symbol current_class, std::vector<Symbol>* met_ordered);
    void code_prototypeObjects();
    int numOfattr(CgenNode* n);
+   void code_attrList(CgenNode* n, Symbol current_class);
 
 
 // The following creates an inheritance graph from
