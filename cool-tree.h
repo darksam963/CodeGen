@@ -185,6 +185,15 @@ public:
       return_type = a3;
       expr = a4;
    }
+   int num_of_formals()
+   {
+      int num = 0;
+      for(int i=formals->first(); formals->more(i); i=formals->next(i))
+      {
+         num+=1;
+      }
+      return num;
+   }
    Feature copy_Feature();
    void dump(ostream& stream, int n);
 

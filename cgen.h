@@ -48,6 +48,7 @@ private:
 // for class initializing methods, class methods
    void code_obj_init();
    void code_class_init(CgenNode* n);
+   void code_class_methods();
 
 // The following creates an inheritance graph from
 // a list of classes.  The graph is implemented as

@@ -864,8 +864,8 @@ void CgenClassTable::code()
   if(cgen_debug) cout<< "coding class initializing methods" << endl;
   code_obj_init();
 
-
-
+  if(cgen_debug) cout<< "coding class methods" << endl;
+  code_class_methods();
 
 }
 
@@ -1186,4 +1186,33 @@ void CgenClassTable::code_class_init(CgenNode* n)
   emit_load(RA,1,SP,str);
   emit_addiu(SP,SP,12,str);
   str << "\tjr $ra"<<endl;
+}
+
+//CLASS METHODS
+
+void CgenClassTable::code_class_methods()
+{
+  for(unsigned i=0; i<classes_vector.size()-5; i++)
+  {
+    for(int j = classes_vector[i]->features->first(); classes_vector[i]->features->more(j); j = classes_vector[i]->features->next(j))
+    {
+      method_class* M = dynamic_cast<method_class*>(classes_vector[i]->features->nth(j));
+
+      if(M!=NULL)
+      {
+        str << classes_vector[i]->get_name() << METHOD_SEP <<M->name << LABEL;
+        emit_push(SP,str);
+        emit_push(FP,str);
+        emit_push(SELF,str);
+        emit_addiu(FP,SP,4,str);
+        emit_move(SELF,ACC,str);
+        M->expr->code(str);
+        emit_load(FP,3,SP,str);
+        emit_load(SELF,2,SP,str);
+        emit_load(RA,1,SP,str);
+        emit_addiu(SP,SP,M->num_of_formals()*4+12,str);
+        str<<"\tjr $ra"<<endl;
+      }
+    }
+  }
 }
