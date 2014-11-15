@@ -906,6 +906,14 @@ int label_num = 0;
 
 std::vector<Symbol> let_variables;
 
+std::map<Symbol,int> arg_list;
+
+Symbol present_class;
+
+std::map<Symbol, std::map<Symbol, int> > attrTab;
+
+std::map<Symbol, std::map<Symbol, std::pair<int, Symbol> > > dispTab;
+
 void assign_class::code(ostream &s) {
 }
 
@@ -1015,7 +1023,7 @@ void divide_class::code(ostream &s) {
 }
 
 void neg_class::code(ostream &s) {
-
+  emit_neg(ACC,ACC,s);
 }
 
 void lt_class::code(ostream &s) {
@@ -1094,7 +1102,39 @@ void no_expr_class::code(ostream &s) {
 }
 
 void object_class::code(ostream &s) {
+  if(name == self)
+  {
+    emit_move(ACC,SELF,s);
+    return;
+  }
+
+  //if inside of a let expression
+  for(unsigned i=0; i<let_variables.size(); i++)
+  {
+    if(name == let_variables[i])
+    {
+      emit_load(ACC,i+1,SP,s);
+      return;
+    }
+  }
+
+  //if it is a passed argument
+
+  if(arg_list.find(name) != arg_list.end())
+  {
+    emit_load(ACC,(arg_list.size() - 1 - arg_list[name] + 3),FP,s);
+  }
+
+  //if just an attribute of a object
+  else
+  {
+    emit_load(ACC,(attrTab[present_class][name]+3),SELF,s);
+  }
+
 }
+
+///////////////////////////////////////////////////////////////////////////////////
+
 
 void CgenClassTable::code_class_nameTab()
 {
@@ -1121,9 +1161,6 @@ void CgenClassTable::code_objTab()
 }
 
 //DISPATCH TABLES
-
-std::map<Symbol, std::map<Symbol, std::pair<int, Symbol> > > dispTab;
-
 
 void CgenClassTable::make_dispTab(CgenNode* n, Symbol current_class, std::vector<Symbol>* met_ordered)
 {
@@ -1175,8 +1212,6 @@ void CgenClassTable::code_dispTab()
 }
 
 //PROTOTYPE OBJECTS
-
-std::map<Symbol, std::map<Symbol, int> > attrTab;
 
 int CgenClassTable::numOfattr(CgenNode* n)
 {
@@ -1313,6 +1348,17 @@ void CgenClassTable::code_class_methods()
 
       if(M!=NULL)
       {
+
+        std::map<Symbol, int> templ;
+
+        Formals f = M->formals;
+        for(int k = f->first(); f->more(k); i=f->next(k))
+        {
+            templ.insert(std::pair<Symbol,int>(((formal_class*)(f->nth(k)))->name,k));
+        }
+
+        arg_list = templ;
+
         str << classes_vector[i]->get_name() << METHOD_SEP <<M->name << LABEL;
 
         emit_push(FP,str);
@@ -1320,7 +1366,9 @@ void CgenClassTable::code_class_methods()
         emit_push(RA,str);
         emit_addiu(FP,SP,4,str);
         emit_move(SELF,ACC,str);
-        
+
+        present_class = classes_vector[i]->get_name();
+
         M->expr->code(str);
         
         emit_load(FP,3,SP,str);
