@@ -904,6 +904,8 @@ CgenNode::CgenNode(Class_ nd, Basicness bstatus, CgenClassTableP ct) :
 
 int label_num = 0;
 
+std::vector<Symbol> let_variables;
+
 void assign_class::code(ostream &s) {
 }
 
@@ -944,36 +946,124 @@ void typcase_class::code(ostream &s) {
 }
 
 void block_class::code(ostream &s) {
+  for(int i=body->first(); body->more(i); i = body->next(i))
+  {
+    body->nth(i)->code(s);
+  }
 }
 
 void let_class::code(ostream &s) {
+  init->code(s);
+  
+  if(init->get_type() == NULL)
+  {
+    if(type_decl == Int)
+    {
+      emit_load_int(ACC,inttable.lookup_string("0"),s);
+    }
+    else if(type_decl == Str)
+    {
+      emit_load_string(ACC,stringtable.lookup_string(""),s);
+    }
+    else if(type_decl == Bool)
+    {
+      emit_load_bool(ACC,BoolConst(false),s);
+    }
+  }
+
+  emit_push(ACC,s);
+  let_variables.push_back(identifier);
+  body->code(s);
+  let_variables.pop_back();
+  emit_addiu(SP,SP,4,s);
 }
 
 void plus_class::code(ostream &s) {
+  e1->code(s);
+  emit_push(ACC,s);
+  e2->code(s);
+  emit_load(T1,1,SP,s);
+  emit_add(ACC,ACC,T1,s);
+  emit_addiu(SP,SP,4,s);
 }
 
 void sub_class::code(ostream &s) {
+  e1->code(s);
+  emit_push(ACC,s);
+  e2->code(s);
+  emit_load(T1,1,SP,s);
+  emit_sub(ACC,T1,ACC,s);
+  emit_addiu(SP,SP,4,s);
 }
 
 void mul_class::code(ostream &s) {
+  e1->code(s);
+  emit_push(ACC,s);
+  e2->code(s);
+  emit_load(T1,1,SP,s);
+  emit_mul(ACC,T1,ACC,s);
+  emit_addiu(SP,SP,4,s);
 }
 
 void divide_class::code(ostream &s) {
+  e1->code(s);
+  emit_push(ACC,s);
+  e2->code(s);
+  emit_load(T1,1,SP,s);
+  emit_div(ACC,T1,ACC,s);
+  emit_addiu(SP,SP,4,s);
 }
 
 void neg_class::code(ostream &s) {
+
 }
 
 void lt_class::code(ostream &s) {
+  e1->code(s);
+  emit_push(ACC,s);
+  e2->code(s);
+  emit_load(T1,1,SP,s);
+  int true_label = label_num++;
+  int end_label = label_num++;
+  emit_blt(T1,ACC,true_label,s);
+  emit_load_address(ACC,"bool_const0",s);
+  emit_branch(end_label,s);
+  emit_label_def(true_label,s);
+  emit_load_address(ACC,"bool_const1",s);
+  emit_label_def(end_label,s);
+  emit_addiu(SP,SP,4,s);
 }
 
 void eq_class::code(ostream &s) {
+
+
 }
 
 void leq_class::code(ostream &s) {
+  e1->code(s);
+  emit_push(ACC,s);
+  e2->code(s);
+  emit_load(T1,1,SP,s);
+  int true_label = label_num++;
+  int end_label = label_num++;
+  emit_blt(T1,ACC,true_label,s);
+  emit_beq(T1,ACC,true_label,s);
+  emit_load_address(ACC,"bool_const0",s);
+  emit_branch(end_label,s);
+  emit_label_def(true_label,s);
+  emit_load_address(ACC,"bool_const1",s);
+  emit_label_def(end_label,s);
+  emit_addiu(SP,SP,4,s);
 }
 
 void comp_class::code(ostream &s) {
+  e1->code(s);
+  emit_load(T1,3,ACC,s);
+  emit_load_address(ACC,"bool_const1",s); 
+  int t_label = label_num++;
+  emit_beqz(T1,t_label,s);
+  emit_load_address(ACC,"bool_const0",s);
+  emit_label_def(t_label,s);
 }
 
 void int_const_class::code(ostream& s)  

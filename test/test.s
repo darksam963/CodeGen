@@ -572,6 +572,43 @@ Main.main:
 	addiu	$sp $sp -4
 	addiu	$fp $sp 4
 	move	$s0 $a0
+	la	$a0 int_const2
+	sw	$a0 0($sp)
+	addiu	$sp $sp -4
+	la	$a0 int_const3
+	lw	$t1 4($sp)
+	blt	$t1 $a0 label1
+	la	$a0 bool_const0
+	b	label2
+label1:
+	la	$a0 bool_const1
+label2:
+	addiu	$sp $sp 4
+	lw	$t1 12($a0)
+	beqz	$t1 label0
+	b	label3
+label0:
+label3:
+	la	$a0 int_const0
+	sw	$a0 0($sp)
+	addiu	$sp $sp -4
+	la	$a0 int_const1
+	lw	$t1 4($sp)
+	blt	$t1 $a0 label4
+	la	$a0 bool_const0
+	b	label5
+label4:
+	la	$a0 bool_const1
+label5:
+	addiu	$sp $sp 4
+	sw	$a0 0($sp)
+	addiu	$sp $sp -4
+label6:
+	lw	$t1 12($a0)
+	beqz	$t1 label7
+	b	label6
+label7:
+	addiu	$sp $sp 4
 	lw	$fp 12($sp)
 	lw	$s0 8($sp)
 	lw	$ra 4($sp)
@@ -586,6 +623,12 @@ A.f1:
 	addiu	$sp $sp -4
 	addiu	$fp $sp 4
 	move	$s0 $a0
+	sw	$a0 0($sp)
+	addiu	$sp $sp -4
+	la	$a0 int_const1
+	lw	$t1 4($sp)
+	mul	$a0 $t1 $a0
+	addiu	$sp $sp 4
 	lw	$fp 12($sp)
 	lw	$s0 8($sp)
 	lw	$ra 4($sp)
