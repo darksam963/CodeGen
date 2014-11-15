@@ -1314,10 +1314,10 @@ void CgenClassTable::code_class_methods()
       if(M!=NULL)
       {
         str << classes_vector[i]->get_name() << METHOD_SEP <<M->name << LABEL;
-        
-        emit_push(SP,str);
+
         emit_push(FP,str);
         emit_push(SELF,str);
+        emit_push(RA,str);
         emit_addiu(FP,SP,4,str);
         emit_move(SELF,ACC,str);
         
@@ -1326,7 +1326,7 @@ void CgenClassTable::code_class_methods()
         emit_load(FP,3,SP,str);
         emit_load(SELF,2,SP,str);
         emit_load(RA,1,SP,str);
-        emit_addiu(SP,SP,M->num_of_formals()*4+12,str);
+        emit_addiu(SP,SP,(M->num_of_formals()*4)+12,str);
         str<<"\tjr $ra"<<endl;
       }
     }

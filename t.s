@@ -389,11 +389,11 @@ Main_init:
 	addiu	$sp $sp 12
 	jr $ra
 Main.main:
-	sw	$sp 0($sp)
-	addiu	$sp $sp -4
 	sw	$fp 0($sp)
 	addiu	$sp $sp -4
 	sw	$s0 0($sp)
+	addiu	$sp $sp -4
+	sw	$ra 0($sp)
 	addiu	$sp $sp -4
 	addiu	$fp $sp 4
 	move	$s0 $a0
