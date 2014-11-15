@@ -902,6 +902,8 @@ CgenNode::CgenNode(Class_ nd, Basicness bstatus, CgenClassTableP ct) :
 //
 //*****************************************************************
 
+int label_num = 0;
+
 void assign_class::code(ostream &s) {
 }
 
@@ -912,9 +914,30 @@ void dispatch_class::code(ostream &s) {
 }
 
 void cond_class::code(ostream &s) {
+  
+  int else_label = label_num++;
+  pred->code(s);
+  emit_load(T1,3,ACC,s);
+  emit_beqz(T1,else_label,s);
+  then_exp->code(s);
+  int endif_label = label_num++;
+  emit_branch(endif_label,s);
+  emit_label_def(else_label,s);
+  else_exp->code(s);
+  emit_label_def(endif_label,s);
+
 }
 
 void loop_class::code(ostream &s) {
+  int loop_condition_label = label_num++; 
+  emit_label_def(loop_condition_label,s);
+  pred->code(s);
+  int loop_end_label = label_num++;
+  emit_load(T1,3,ACC,s);
+  emit_beqz(T1,loop_end_label,s);
+  body->code(s);
+  emit_branch(loop_condition_label,s);
+  emit_label_def(loop_end_label,s);
 }
 
 void typcase_class::code(ostream &s) {
@@ -1130,14 +1153,14 @@ void CgenClassTable::code_prototypeObjects()
   {
     int class_tag = classes_vector.size() -1 -i;
     str<<WORD <<"-1"<<endl
-       << classes_vector[i]->get_name() << PROTOBJ_SUFFIX <<LABEL
-        <<WORD <<class_tag<<endl
-        <<WORD << 3+numOfattr(classes_vector[i]) <<endl
-        <<WORD << classes_vector[i]->get_name() << DISPTAB_SUFFIX << endl;
+    << classes_vector[i]->get_name() << PROTOBJ_SUFFIX <<LABEL
+    <<WORD <<class_tag<<endl
+    <<WORD << 3+numOfattr(classes_vector[i]) <<endl
+    <<WORD << classes_vector[i]->get_name() << DISPTAB_SUFFIX << endl;
 
-        std::map <Symbol,int> attrList;
-        attrTab.insert(std::pair<Symbol, std::map<Symbol, int> >(classes_vector[i]->get_name(),attrList));
-        code_attrList(classes_vector[i],classes_vector[i]->get_name());
+    std::map <Symbol,int> attrList;
+    attrTab.insert(std::pair<Symbol, std::map<Symbol, int> >(classes_vector[i]->get_name(),attrList));
+    code_attrList(classes_vector[i],classes_vector[i]->get_name());
   }
 }
 
@@ -1201,12 +1224,15 @@ void CgenClassTable::code_class_methods()
       if(M!=NULL)
       {
         str << classes_vector[i]->get_name() << METHOD_SEP <<M->name << LABEL;
+        
         emit_push(SP,str);
         emit_push(FP,str);
         emit_push(SELF,str);
         emit_addiu(FP,SP,4,str);
         emit_move(SELF,ACC,str);
+        
         M->expr->code(str);
+        
         emit_load(FP,3,SP,str);
         emit_load(SELF,2,SP,str);
         emit_load(RA,1,SP,str);
