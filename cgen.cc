@@ -916,6 +916,7 @@ std::map<Symbol, std::map<Symbol, std::pair<int, Symbol> > > dispTab;  // mainta
 
 void assign_class::code(ostream &s) {
   expr->code(s);
+  //if part of let variables
   for(int i = let_variables.size()-1; i>=0; i--)
   {
     if(name == let_variables[i])
@@ -924,13 +925,15 @@ void assign_class::code(ostream &s) {
       return;
     }
   }
+  //if part of arguments of a method
   if(arg_list.find(name) != arg_list.end())
   {
     emit_store(ACC,arg_list[name]+3,SELF,s);
-    return;
   }
-  emit_store(ACC,(attrTab[present_class][name]+3),SELF,s);
-
+	else
+	{
+  		emit_store(ACC,(attrTab[present_class][name]+3),SELF,s);
+	}
 }
 
 //returns number of arguments
@@ -966,7 +969,7 @@ void static_dispatch_class::code(ostream &s) {
   
   Symbol t = present_class;
 
-  present_class = expr->get_type();  //setting present class to the class it is being called upon.
+  present_class = type_name;  //setting present class to the class it is being called upon.
 
   char dispatch_label[128];       
   char* class_name = present_class->get_string();
@@ -1005,7 +1008,7 @@ void dispatch_class::code(ostream &s) {
 
   for(int i=0; i<num_of_arg; i++)
   {
-    let_variables.pop_back();
+    let_variables.pop_back();   //fixing let_variables
   }
   present_class = t;
 }
@@ -1035,6 +1038,7 @@ void loop_class::code(ostream &s) {
   body->code(s);                                //loop body code
   emit_branch(loop_condition_label,s);          //jumping back to check loop condition
   emit_label_def(loop_end_label,s);
+  emit_move(ACC,ZERO,s);
 }
 
 void typcase_class::code(ostream &s) {
@@ -1049,7 +1053,7 @@ void block_class::code(ostream &s) {
 
 void let_class::code(ostream &s) {
   init->code(s);
-  
+  //if a basic type
   if(init->get_type() == NULL)
   {
     if(type_decl == Int)
@@ -1064,12 +1068,17 @@ void let_class::code(ostream &s) {
     {
       emit_load_bool(ACC,BoolConst(false),s);
     }
+    else //if not a basic type
+    {
+	   emit_load_imm(ACC,0,s);
+    }
+
   }
 
   emit_push(ACC,s);
-  let_variables.push_back(identifier);
-  body->code(s);
-  let_variables.pop_back();
+  let_variables.push_back(identifier);    //pushing that variable on the let_variables 
+  body->code(s);             
+  let_variables.pop_back();       //popping that variable off the let_variables 
   emit_addiu(SP,SP,4,s);
 }
 
@@ -1170,7 +1179,7 @@ void eq_class::code(ostream &s) {
   emit_load(T1,1,SP,s);
   emit_move(T2,ACC,s);
 
-  if(e1->get_type() == Int || e1->get_type() == Str || e1->get_type() == Bool)
+  if(e1->get_type() == Int || e1->get_type() == Str || e1->get_type() == Bool) 
   {
     emit_load_address(ACC,"bool_const1",s);
     emit_load_address(A1,"bool_const0",s);
@@ -1178,7 +1187,7 @@ void eq_class::code(ostream &s) {
   }
   else
   {
-    emit_load_address(ACC,"bool_const1",s);
+    emit_load_address(ACC,"bool_const1",s);   
     emit_beq(T1,T2,label_num,s);
     emit_load_address(ACC,"bool_const0",s);
     emit_label_def(label_num,s);
@@ -1209,7 +1218,7 @@ void leq_class::code(ostream &s) {
 }
 
 void comp_class::code(ostream &s) {
-  e1->code(s);
+  e1->code(s);                    
   emit_load(T1,3,ACC,s);
   emit_load_address(ACC,"bool_const1",s); 
   int t_label = label_num++;
@@ -1237,22 +1246,6 @@ void bool_const_class::code(ostream& s)
 }
 
 void new__class::code(ostream &s) {
-if( type_name == SELF_TYPE)
-{
-  emit_load_address(T1,"class_objTab",s);
-  emit_load(T2,0,SELF,s);
-  emit_sll(T2,T2,3,s);
-  emit_addu(T1,T1,T2,s);
-  emit_push(T1,s);
-  emit_load(ACC,0,T1,s);
-  emit_jal("Object.copy",s);
-  emit_load(T1,1,SP,s);
-  emit_load(T1,1,T1,s);
-  emit_addiu(SP,SP,4,s);
-  emit_jalr(T1,s);
-}
-else
-{
   char object_prototype[128];
   strcpy(object_prototype,type_name->get_string());
   strcat(object_prototype,PROTOBJ_SUFFIX);
@@ -1264,7 +1257,6 @@ else
   strcpy(object_init,type_name->get_string());
   strcat(object_init,CLASSINIT_SUFFIX);
   emit_jal(object_init,s);
-}
 }
 
 void isvoid_class::code(ostream &s) {
@@ -1289,11 +1281,11 @@ void object_class::code(ostream &s) {
   }
 
   //if inside of a let expression
-  for(unsigned i=0; i<let_variables.size(); i++)
+  for(int i = (int)let_variables.size()-1; i>=0; i--)
   {
     if(name == let_variables[i])
     {
-      emit_load(ACC,i+1,SP,s);
+      emit_load(ACC,(let_variables.size()-i),SP,s);
       return;
     }
   }
@@ -1302,7 +1294,7 @@ void object_class::code(ostream &s) {
 
   if(arg_list.find(name) != arg_list.end())
   {
-    emit_load(ACC,(arg_list.size() - 1 - arg_list[name] + 3),FP,s);
+    emit_load(ACC,(arg_list.size() - arg_list[name] + 2),FP,s);
   }
 
   //if just an attribute of a object
@@ -1319,9 +1311,10 @@ void object_class::code(ostream &s) {
 void CgenClassTable::code_class_nameTab()
 {
   str << CLASSNAMETAB << LABEL;
+  //iterating over all classes in the vector and adding their na e to the table.
   for(int i = classes_vector.size()-1;i>-1;i--)
   {
-    char* name = (classes_vector[i])->get_name()->get_string();
+    char* name = (classes_vector[i])->get_name()->get_string(); 
     StringEntry* entry = stringtable.lookup_string(name);
     str<< WORD;
     entry ->code_ref(str);
@@ -1473,7 +1466,7 @@ void CgenClassTable::code_prototypeObjects()
 
 void CgenClassTable::code_obj_init()
 {
-  for(int i=classes_vector.size()-1; i>-1; i--)
+  for(int i=0; i<classes_vector.size(); i++)
   {
     str << classes_vector[i]->get_name() << CLASSINIT_SUFFIX << LABEL;
     code_class_init(classes_vector[i]);
@@ -1503,6 +1496,10 @@ void CgenClassTable::code_class_init(CgenNode* n)
       {
         attr->init->code(str);
         emit_store(ACC,(attrTab[n->get_name()][attr->name]+3),SELF,str);
+
+	// garbage collection
+	emit_addiu(A1,SELF,(attrTab[n->get_name()][attr->name]+3)*4,str);
+	emit_jal("_GenGC_Assign",str);
       }
     }
   }
@@ -1529,15 +1526,14 @@ void CgenClassTable::code_class_methods()
       if(M!=NULL)
       {
 
-        std::map<Symbol, int> templ;
+       	arg_list.clear();
 
         Formals f = M->formals;
         for(int k = f->first(); f->more(k); k=f->next(k))
         {
-            templ.insert(std::pair<Symbol,int>(((formal_class*)(f->nth(k)))->name,k));
+            arg_list.insert(std::pair<Symbol,int>(((formal_class*)(f->nth(k)))->name,k));
         }
 
-        arg_list = templ;
 
         str << classes_vector[i]->get_name() << METHOD_SEP <<M->name << LABEL;
 

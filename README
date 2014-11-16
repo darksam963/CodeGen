@@ -135,3 +135,40 @@ Instructions
 
         GOOD LUCK!
 
+=======================================================================================================================================================================================
+
+Design Decisions
+
+=======================================================================================================================================================================================
+
+
+
+The entry point is at constructor of CgenClassTable. 
+
+In this constructor we go over the basic calsses first and install them to the table.
+
+Then we install rest of the classes and build the inheritance tree.
+
+We also construct a vector of classes to refer back to them in the constructor and call code function.
+
+In the code function first of all we code global data first, then we select the garbage collector.
+
+Then we emit code for all constants in the program, int constants, string constants and bool constants.
+
+Thne we build the table for holding all the class name that apeear on the program and emit the table to the spim file.
+
+Then we do the same for object table.
+
+Then we build dispatch tables for all methods of all classes.
+
+Then we emit the prototype objetcs of all of the classes.
+
+Then we emit global text like ".heap start" 
+
+We then emit the init methodds of all classes.
+
+Then we emit the methods of all classes and and emit the code of their expressions as they come.
+
+
+
+
