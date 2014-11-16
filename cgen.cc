@@ -1237,18 +1237,34 @@ void bool_const_class::code(ostream& s)
 }
 
 void new__class::code(ostream &s) {
+if( type_name == SELF_TYPE)
+{
+  emit_load_address(T1,"class_objTab",s);
+  emit_load(T2,0,SELF,s);
+  emit_sll(T2,T2,3,s);
+  emit_addu(T1,T1,T2,s);
+  emit_push(T1,s);
+  emit_load(ACC,0,T1,s);
+  emit_jal("Object.copy",s);
+  emit_load(T1,1,SP,s);
+  emit_load(T1,1,T1,s);
+  emit_addiu(SP,SP,4,s);
+  emit_jalr(T1,s);
+}
+else
+{
+  char object_prototype[128];
+  strcpy(object_prototype,type_name->get_string());
+  strcat(object_prototype,PROTOBJ_SUFFIX);
 
-char object_prototype[128];
-strcpy(object_prototype,type_name->get_string());
-strcat(object_prototype,PROTOBJ_SUFFIX);
+  emit_load_address(ACC,object_prototype,s);
+  emit_jal("Object.copy",s);
 
-emit_load_address(ACC,object_prototype,s);
-emit_jal("Object.copy",s);
-
-char object_init[128];
-strcpy(object_init,type_name->get_string());
-strcat(object_init,CLASSINIT_SUFFIX);
-emit_jal(object_init,s);
+  char object_init[128];
+  strcpy(object_init,type_name->get_string());
+  strcat(object_init,CLASSINIT_SUFFIX);
+  emit_jal(object_init,s);
+}
 }
 
 void isvoid_class::code(ostream &s) {
