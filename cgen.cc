@@ -902,22 +902,38 @@ CgenNode::CgenNode(Class_ nd, Basicness bstatus, CgenClassTableP ct) :
 //
 //*****************************************************************
 
-int label_num = 0;
+int label_num = 0;   // for maintaining label indices across the program
 
-std::vector<Symbol> let_variables;
+std::vector<Symbol> let_variables; //for managing let vairiables
 
-std::map<Symbol,int> arg_list;
+std::map<Symbol,int> arg_list;  // argument list of current method whose code is being generated.
 
-Symbol present_class;
+Symbol present_class;  // current class whose code is being generated.
 
-std::map<Symbol, std::map<Symbol, int> > attrTab;
+std::map<Symbol, std::map<Symbol, int> > attrTab;  // maintaining attributes of all classes
 
-std::map<Symbol, std::map<Symbol, std::pair<int, Symbol> > > dispTab;
+std::map<Symbol, std::map<Symbol, std::pair<int, Symbol> > > dispTab;  // maintaining methods of all classes.
 
 void assign_class::code(ostream &s) {
+  expr->code(s);
+  for(int i = let_variables.size()-1; i>=0; i--)
+  {
+    if(name == let_variables[i])
+    {
+      emit_store(ACC,let_variables.size()-i,SP,s);
+      return;
+    }
+  }
+  if(arg_list.find(name) != arg_list.end())
+  {
+    emit_store(ACC,arg_list[name]+3,SELF,s);
+    return;
+  }
+  emit_store(ACC,(attrTab[present_class][name]+3),SELF,s);
 
 }
 
+//returns number of arguments
 int num_of_arguments(Expressions actual) 
 {
   int length = 0;
@@ -928,17 +944,18 @@ int num_of_arguments(Expressions actual)
   return length;
 }
 
+//utillity for dispatch, pushes all arguments in actual on the stack and checks for method being called upon null object
 void dispatch_util(ostream& s, Expressions actual, Expression expr)
 {
   for(int i=actual->first(); actual->more(i); i = actual->next(i))
   {
     actual->nth(i)->code(s);
     emit_push(ACC,s);
-    let_variables.push_back(No_type);
+    let_variables.push_back(No_type);    // so that let variables can find the right offset on the stack.
   }
   expr->code(s);
   emit_bne(ACC,ZERO,label_num,s);
-  s<<LA<<ACC<<" " << "str_const0" << endl;
+  s<<LA<<ACC<<" " << "str_const0" << endl;  
   emit_load_imm(T1,1,s);
   emit_jal("_dispatch_abort",s);
 }
@@ -946,11 +963,12 @@ void dispatch_util(ostream& s, Expressions actual, Expression expr)
 void static_dispatch_class::code(ostream &s) {
   int num_of_arg = num_of_arguments(actual);
   dispatch_util(s,actual,expr);
+  
   Symbol t = present_class;
 
-  present_class = expr->get_type();
+  present_class = expr->get_type();  //setting present class to the class it is being called upon.
 
-  char dispatch_label[128];
+  char dispatch_label[128];       
   char* class_name = present_class->get_string();
   strcpy(dispatch_label,class_name);
   strcat(dispatch_label,DISPTAB_SUFFIX);
@@ -958,12 +976,13 @@ void static_dispatch_class::code(ostream &s) {
   emit_label_def(label_num,s);
   label_num++;
   emit_load_address(T1,dispatch_label,s);
-  emit_load(T1,dispTab[present_class][name].first,T1,s);
+  emit_load(T1,dispTab[present_class][name].first,T1,s); 
+  //jumping to the address of the method we got from the dispatch table.
   emit_jalr(T1,s);
 
   for(int i=0; i<num_of_arg; i++)
   {
-    let_variables.pop_back();
+    let_variables.pop_back();   // so that let variables can find the right offset on the stack
   }
   present_class = t;
 }
@@ -975,7 +994,7 @@ void dispatch_class::code(ostream &s) {
 
   if(expr->get_type() != SELF_TYPE)
   {
-    present_class = expr->get_type();
+    present_class = expr->get_type();    
   }
 
   emit_label_def(label_num,s);
@@ -994,14 +1013,14 @@ void dispatch_class::code(ostream &s) {
 void cond_class::code(ostream &s) {
   
   int else_label = label_num++;
-  pred->code(s);
+  pred->code(s);                  //condition expression evaluated
   emit_load(T1,3,ACC,s);
-  emit_beqz(T1,else_label,s);
-  then_exp->code(s);
+  emit_beqz(T1,else_label,s);     //checking if it is false, if it is jump to else
+  then_exp->code(s);              //then expression code
   int endif_label = label_num++;
-  emit_branch(endif_label,s);
+  emit_branch(endif_label,s);     //jump to end of if statement
   emit_label_def(else_label,s);
-  else_exp->code(s);
+  else_exp->code(s);              //else expression code
   emit_label_def(endif_label,s);
 
 }
@@ -1009,12 +1028,12 @@ void cond_class::code(ostream &s) {
 void loop_class::code(ostream &s) {
   int loop_condition_label = label_num++; 
   emit_label_def(loop_condition_label,s);
-  pred->code(s);
+  pred->code(s);                                //condition expression evaluated
   int loop_end_label = label_num++;
-  emit_load(T1,3,ACC,s);
+  emit_load(T1,3,ACC,s);                        //checking if it is false, if it is jump to end of loop
   emit_beqz(T1,loop_end_label,s);
-  body->code(s);
-  emit_branch(loop_condition_label,s);
+  body->code(s);                                //loop body code
+  emit_branch(loop_condition_label,s);          //jumping back to check loop condition
   emit_label_def(loop_end_label,s);
 }
 
@@ -1024,7 +1043,7 @@ void typcase_class::code(ostream &s) {
 void block_class::code(ostream &s) {
   for(int i=body->first(); body->more(i); i = body->next(i))
   {
-    body->nth(i)->code(s);
+    body->nth(i)->code(s);           // generating code for each expression in the block.
   }
 }
 
@@ -1055,80 +1074,138 @@ void let_class::code(ostream &s) {
 }
 
 void plus_class::code(ostream &s) {
-  e1->code(s);
-  emit_push(ACC,s);
-  e2->code(s);
-  emit_load(T1,1,SP,s);
-  emit_add(ACC,ACC,T1,s);
-  emit_addiu(SP,SP,4,s);
+  e1->code(s);                     //evaluating the first expression
+  emit_push(ACC,s);                //pushing the result on the stack
+  let_variables.push_back(No_type); //so that let variables can find right offset on the stack
+  e2->code(s);                      //evaluating second expression
+  emit_jal("Object.copy",s);        //to create a new object for result
+  emit_fetch_int(T2,ACC,s);         //fetching actual int value from address
+  emit_load(T1,1,SP,s);             //restoring back the the value of e1
+  emit_fetch_int(T1,T1,s);          //fetching actual int from the address
+  emit_add(T1,T1,T2,s);             //adding 2 expressions
+  emit_store_int(T1,ACC,s);         //storing result to accumulator
+  emit_addiu(SP,SP,4,s);            //poping stack
+  let_variables.pop_back();         //fixin let variables vector
 }
 
 void sub_class::code(ostream &s) {
-  e1->code(s);
-  emit_push(ACC,s);
-  e2->code(s);
-  emit_load(T1,1,SP,s);
-  emit_sub(ACC,T1,ACC,s);
-  emit_addiu(SP,SP,4,s);
+  e1->code(s);                     //evaluating the first expression
+  emit_push(ACC,s);                //pushing the result on the stack
+  let_variables.push_back(No_type); //so that let variables can find right offset on the stack
+  e2->code(s);                      //evaluating second expression
+  emit_jal("Object.copy",s);        //to create a new object for result
+  emit_fetch_int(T2,ACC,s);         //fetching actual int value from address
+  emit_load(T1,1,SP,s);             //restoring back the the value of e1
+  emit_fetch_int(T1,T1,s);          //fetching actual int from the address
+  emit_sub(T1,T1,T2,s);             //subtracting 2 expressions
+  emit_store_int(T1,ACC,s);         //storing result to accumulator
+  emit_addiu(SP,SP,4,s);            //poping stack
+  let_variables.pop_back();         //fixin let variables vector
 }
 
 void mul_class::code(ostream &s) {
-  e1->code(s);
-  emit_push(ACC,s);
-  e2->code(s);
-  emit_load(T1,1,SP,s);
-  emit_mul(ACC,T1,ACC,s);
-  emit_addiu(SP,SP,4,s);
+  e1->code(s);                     //evaluating the first expression
+  emit_push(ACC,s);                //pushing the result on the stack
+  let_variables.push_back(No_type); //so that let variables can find right offset on the stack
+  e2->code(s);                      //evaluating second expression
+  emit_jal("Object.copy",s);        //to create a new object for result
+  emit_fetch_int(T2,ACC,s);         //fetching actual int value from address
+  emit_load(T1,1,SP,s);             //restoring back the the value of e1
+  emit_fetch_int(T1,T1,s);          //fetching actual int from the address
+  emit_mul(T1,T1,T2,s);             //multiplying 2 expressions
+  emit_store_int(T1,ACC,s);         //storing result to accumulator
+  emit_addiu(SP,SP,4,s);            //poping stack
+  let_variables.pop_back();         //fixin let variables vector
 }
 
 void divide_class::code(ostream &s) {
-  e1->code(s);
-  emit_push(ACC,s);
-  e2->code(s);
-  emit_load(T1,1,SP,s);
-  emit_div(ACC,T1,ACC,s);
-  emit_addiu(SP,SP,4,s);
+  e1->code(s);                     //evaluating the first expression
+  emit_push(ACC,s);                //pushing the result on the stack
+  let_variables.push_back(No_type); //so that let variables can find right offset on the stack
+  e2->code(s);                      //evaluating second expression
+  emit_jal("Object.copy",s);        //to create a new object for result
+  emit_fetch_int(T2,ACC,s);         //fetching actual int value from address
+  emit_load(T1,1,SP,s);             //restoring back the the value of e1
+  emit_fetch_int(T1,T1,s);          //fetching actual int from the address
+  emit_div(T1,T1,T2,s);             //dividing 2 expressions
+  emit_store_int(T1,ACC,s);         //storing result to accumulator
+  emit_addiu(SP,SP,4,s);            //poping stack
+  let_variables.pop_back();         //fixin let variables vector
 }
 
 void neg_class::code(ostream &s) {
-  emit_neg(ACC,ACC,s);
+  e1->code(s);
+  emit_jal("Object.copy",s);
+  emit_fetch_int(T1,ACC,s);
+  emit_neg(T1,T1,s);
+  emit_store_int(T1,ACC,s);
 }
 
 void lt_class::code(ostream &s) {
-  e1->code(s);
-  emit_push(ACC,s);
-  e2->code(s);
-  emit_load(T1,1,SP,s);
+  e1->code(s);                     //evaluating the first expression
+  emit_push(ACC,s);                //pushing the result on the stack
+  let_variables.push_back(No_type); //so that let variables can find right offset on the stack
+  e2->code(s);                      //evaluating second expression
+  emit_fetch_int(T2,ACC,s);
+  emit_load(T1,1,SP,s);             //load address of first expression in $t1
+  emit_fetch_int(T1,T1,s);
   int true_label = label_num++;
   int end_label = label_num++;
-  emit_blt(T1,ACC,true_label,s);
-  emit_load_address(ACC,"bool_const0",s);
-  emit_branch(end_label,s);
-  emit_label_def(true_label,s);
-  emit_load_address(ACC,"bool_const1",s);
+  emit_blt(T1,T2,true_label,s);     //if 1st expression is less thans 2nd jump to true
+  emit_load_address(ACC,"bool_const0",s);  //loading false in the accumulator
+  emit_branch(end_label,s);          //jump to end 
+  emit_label_def(true_label,s);        //start of true label 
+  emit_load_address(ACC,"bool_const1",s);   // loading true in accumulator
   emit_label_def(end_label,s);
-  emit_addiu(SP,SP,4,s);
+  emit_addiu(SP,SP,4,s);            //popping stack
+  let_variables.pop_back();         //fixin let variables vector
 }
 
 void eq_class::code(ostream &s) {
 
+  e1->code(s);
+  emit_push(ACC,s);
+  let_variables.push_back(No_type);
+  e2->code(s);
+  emit_load(T1,1,SP,s);
+  emit_move(T2,ACC,s);
 
+  if(e1->get_type() == Int || e1->get_type() == Str || e1->get_type() == Bool)
+  {
+    emit_load_address(ACC,"bool_const1",s);
+    emit_load_address(A1,"bool_const0",s);
+    emit_jal("equality_test",s);
+  }
+  else
+  {
+    emit_load_address(ACC,"bool_const1",s);
+    emit_beq(T1,T2,label_num,s);
+    emit_load_address(ACC,"bool_const0",s);
+    emit_label_def(label_num,s);
+    label_num++;
+  }
+  emit_addiu(SP,SP,4,s);
+  let_variables.pop_back();
 }
 
 void leq_class::code(ostream &s) {
-  e1->code(s);
-  emit_push(ACC,s);
-  e2->code(s);
-  emit_load(T1,1,SP,s);
+  e1->code(s);                     //evaluating the first expression
+  emit_push(ACC,s);                //pushing the result on the stack
+  let_variables.push_back(No_type); //so that let variables can find right offset on the stack
+  e2->code(s);                      //evaluating second expression
+  emit_fetch_int(T2,ACC,s);
+  emit_load(T1,1,SP,s);             //load address of first expression in $t1
+  emit_fetch_int(T1,T1,s);
   int true_label = label_num++;
   int end_label = label_num++;
-  emit_bleq(T1,ACC,true_label,s);
-  emit_load_address(ACC,"bool_const0",s);
-  emit_branch(end_label,s);
-  emit_label_def(true_label,s);
-  emit_load_address(ACC,"bool_const1",s);
+  emit_bleq(T1,T2,true_label,s);     //if 1st expression is less than or equal to 2nd, jump to true
+  emit_load_address(ACC,"bool_const0",s);  //loading false in the accumulator
+  emit_branch(end_label,s);          //jump to end 
+  emit_label_def(true_label,s);        //start of true label 
+  emit_load_address(ACC,"bool_const1",s);   // loading true in accumulator
   emit_label_def(end_label,s);
-  emit_addiu(SP,SP,4,s);
+  emit_addiu(SP,SP,4,s);            //popping stack
+  let_variables.pop_back();         //fixin let variables vecto
 }
 
 void comp_class::code(ostream &s) {
@@ -1160,6 +1237,10 @@ void bool_const_class::code(ostream& s)
 }
 
 void new__class::code(ostream &s) {
+
+
+
+
 }
 
 void isvoid_class::code(ostream &s) {
