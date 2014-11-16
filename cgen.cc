@@ -1238,9 +1238,17 @@ void bool_const_class::code(ostream& s)
 
 void new__class::code(ostream &s) {
 
+char object_prototype[128];
+strcpy(object_prototype,type_name->get_string());
+strcat(object_prototype,PROTOBJ_SUFFIX);
 
+emit_load_address(ACC,object_prototype,s);
+emit_jal("Object.copy",s);
 
-
+char object_init[128];
+strcpy(object_init,type_name->get_string());
+strcat(object_init,CLASSINIT_SUFFIX);
+emit_jal(object_init,s);
 }
 
 void isvoid_class::code(ostream &s) {
