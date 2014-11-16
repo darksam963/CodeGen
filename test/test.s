@@ -564,11 +564,11 @@ Main_init:
 	addiu	$sp $sp 12
 	jr $ra
 Main.main:
-	sw	$sp 0($sp)
-	addiu	$sp $sp -4
 	sw	$fp 0($sp)
 	addiu	$sp $sp -4
 	sw	$s0 0($sp)
+	addiu	$sp $sp -4
+	sw	$ra 0($sp)
 	addiu	$sp $sp -4
 	addiu	$fp $sp 4
 	move	$s0 $a0
@@ -586,28 +586,81 @@ label2:
 	addiu	$sp $sp 4
 	lw	$t1 12($a0)
 	beqz	$t1 label0
-	b	label3
-label0:
+	lw	$a0 20($s0)
+	sw	$a0 0($sp)
+	addiu	$sp $sp -4
+	la	$a0 int_const0
+	sw	$a0 0($sp)
+	addiu	$sp $sp -4
+	lw	$a0 12($s0)
+	bne	$a0 $zero label3
+	la	$a0 str_const0
+	li	$t1 1
+	jal	_dispatch_abort
 label3:
+	lw	$t1 8($a0)
+	lw	$t1 20($t1)
+	jalr		$t1
+	b	label4
+label0:
+	lw	$a0 16($s0)
+	bne	$a0 $zero label5
+	la	$a0 str_const0
+	li	$t1 1
+	jal	_dispatch_abort
+label5:
+	lw	$t1 8($a0)
+	lw	$t1 12($t1)
+	jalr		$t1
+label4:
+	lw	$a0 12($s0)
+	bne	$a0 $zero label6
+	la	$a0 str_const0
+	li	$t1 1
+	jal	_dispatch_abort
+label6:
+	la	$t1 A_dispTab
+	lw	$t1 12($t1)
+	jalr		$t1
+	lw	$a0 12($s0)
+	bne	$a0 $zero label7
+	la	$a0 str_const0
+	li	$t1 1
+	jal	_dispatch_abort
+label7:
+	lw	$t1 8($a0)
+	lw	$t1 12($t1)
+	jalr		$t1
 	la	$a0 int_const0
 	sw	$a0 0($sp)
 	addiu	$sp $sp -4
 	la	$a0 int_const1
 	lw	$t1 4($sp)
-	blt	$t1 $a0 label4
+	blt	$t1 $a0 label8
 	la	$a0 bool_const0
-	b	label5
-label4:
+	b	label9
+label8:
 	la	$a0 bool_const1
-label5:
+label9:
 	addiu	$sp $sp 4
 	sw	$a0 0($sp)
 	addiu	$sp $sp -4
-label6:
+label10:
 	lw	$t1 12($a0)
-	beqz	$t1 label7
-	b	label6
-label7:
+	beqz	$t1 label11
+	la	$a0 str_const2
+	sw	$a0 0($sp)
+	addiu	$sp $sp -4
+	bne	$a0 $zero label12
+	la	$a0 str_const0
+	li	$t1 1
+	jal	_dispatch_abort
+label12:
+	lw	$t1 8($a0)
+	lw	$t1 12($t1)
+	jalr		$t1
+	b	label10
+label11:
 	addiu	$sp $sp 4
 	lw	$fp 12($sp)
 	lw	$s0 8($sp)
@@ -615,14 +668,15 @@ label7:
 	addiu	$sp $sp 12
 	jr $ra
 A.f1:
-	sw	$sp 0($sp)
-	addiu	$sp $sp -4
 	sw	$fp 0($sp)
 	addiu	$sp $sp -4
 	sw	$s0 0($sp)
 	addiu	$sp $sp -4
+	sw	$ra 0($sp)
+	addiu	$sp $sp -4
 	addiu	$fp $sp 4
 	move	$s0 $a0
+	lw	$a0 16($s0)
 	sw	$a0 0($sp)
 	addiu	$sp $sp -4
 	la	$a0 int_const1
@@ -635,25 +689,26 @@ A.f1:
 	addiu	$sp $sp 20
 	jr $ra
 A.f2:
-	sw	$sp 0($sp)
-	addiu	$sp $sp -4
 	sw	$fp 0($sp)
 	addiu	$sp $sp -4
 	sw	$s0 0($sp)
 	addiu	$sp $sp -4
+	sw	$ra 0($sp)
+	addiu	$sp $sp -4
 	addiu	$fp $sp 4
 	move	$s0 $a0
+	lw	$a0 20($s0)
 	lw	$fp 12($sp)
 	lw	$s0 8($sp)
 	lw	$ra 4($sp)
 	addiu	$sp $sp 12
 	jr $ra
 B.f2:
-	sw	$sp 0($sp)
-	addiu	$sp $sp -4
 	sw	$fp 0($sp)
 	addiu	$sp $sp -4
 	sw	$s0 0($sp)
+	addiu	$sp $sp -4
+	sw	$ra 0($sp)
 	addiu	$sp $sp -4
 	addiu	$fp $sp 4
 	move	$s0 $a0
@@ -664,14 +719,15 @@ B.f2:
 	addiu	$sp $sp 12
 	jr $ra
 B.g:
-	sw	$sp 0($sp)
-	addiu	$sp $sp -4
 	sw	$fp 0($sp)
 	addiu	$sp $sp -4
 	sw	$s0 0($sp)
 	addiu	$sp $sp -4
+	sw	$ra 0($sp)
+	addiu	$sp $sp -4
 	addiu	$fp $sp 4
 	move	$s0 $a0
+	lw	$a0 12($s0)
 	lw	$fp 12($sp)
 	lw	$s0 8($sp)
 	lw	$ra 4($sp)

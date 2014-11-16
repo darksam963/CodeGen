@@ -915,12 +915,80 @@ std::map<Symbol, std::map<Symbol, int> > attrTab;
 std::map<Symbol, std::map<Symbol, std::pair<int, Symbol> > > dispTab;
 
 void assign_class::code(ostream &s) {
+
+}
+
+int num_of_arguments(Expressions actual) 
+{
+  int length = 0;
+  for(int i = actual->first(); actual->more(i); i = actual->next(i))
+  {
+    length++;
+  }
+  return length;
+}
+
+void dispatch_util(ostream& s, Expressions actual, Expression expr)
+{
+  for(int i=actual->first(); actual->more(i); i = actual->next(i))
+  {
+    actual->nth(i)->code(s);
+    emit_push(ACC,s);
+    let_variables.push_back(No_type);
+  }
+  expr->code(s);
+  emit_bne(ACC,ZERO,label_num,s);
+  s<<LA<<ACC<<" " << "str_const0" << endl;
+  emit_load_imm(T1,1,s);
+  emit_jal("_dispatch_abort",s);
 }
 
 void static_dispatch_class::code(ostream &s) {
+  int num_of_arg = num_of_arguments(actual);
+  dispatch_util(s,actual,expr);
+  Symbol t = present_class;
+
+  present_class = expr->get_type();
+
+  char dispatch_label[128];
+  char* class_name = present_class->get_string();
+  strcpy(dispatch_label,class_name);
+  strcat(dispatch_label,DISPTAB_SUFFIX);
+
+  emit_label_def(label_num,s);
+  label_num++;
+  emit_load_address(T1,dispatch_label,s);
+  emit_load(T1,dispTab[present_class][name].first,T1,s);
+  emit_jalr(T1,s);
+
+  for(int i=0; i<num_of_arg; i++)
+  {
+    let_variables.pop_back();
+  }
+  present_class = t;
 }
 
 void dispatch_class::code(ostream &s) {
+  int num_of_arg = num_of_arguments(actual);
+  dispatch_util(s,actual,expr);
+  Symbol t = present_class;
+
+  if(expr->get_type() != SELF_TYPE)
+  {
+    present_class = expr->get_type();
+  }
+
+  emit_label_def(label_num,s);
+  label_num++;
+  emit_load(T1,2,ACC,s);
+  emit_load(T1,dispTab[present_class][name].first,T1,s);
+  emit_jalr(T1,s);
+
+  for(int i=0; i<num_of_arg; i++)
+  {
+    let_variables.pop_back();
+  }
+  present_class = t;
 }
 
 void cond_class::code(ostream &s) {
@@ -1054,8 +1122,7 @@ void leq_class::code(ostream &s) {
   emit_load(T1,1,SP,s);
   int true_label = label_num++;
   int end_label = label_num++;
-  emit_blt(T1,ACC,true_label,s);
-  emit_beq(T1,ACC,true_label,s);
+  emit_bleq(T1,ACC,true_label,s);
   emit_load_address(ACC,"bool_const0",s);
   emit_branch(end_label,s);
   emit_label_def(true_label,s);
@@ -1096,9 +1163,17 @@ void new__class::code(ostream &s) {
 }
 
 void isvoid_class::code(ostream &s) {
+  e1->code(s);
+  emit_move(T1,ACC,s);
+  emit_load_address(ACC,"bool_const1",s);
+  int t_label = label_num++;
+  emit_beqz(T1,t_label,s);
+  emit_load_address(ACC,"bool_const0",s);
+  emit_label_def(t_label,s);
 }
 
 void no_expr_class::code(ostream &s) {
+  //no_expr :p
 }
 
 void object_class::code(ostream &s) {
@@ -1352,7 +1427,7 @@ void CgenClassTable::code_class_methods()
         std::map<Symbol, int> templ;
 
         Formals f = M->formals;
-        for(int k = f->first(); f->more(k); i=f->next(k))
+        for(int k = f->first(); f->more(k); k=f->next(k))
         {
             templ.insert(std::pair<Symbol,int>(((formal_class*)(f->nth(k)))->name,k));
         }
